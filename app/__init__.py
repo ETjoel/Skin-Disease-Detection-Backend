@@ -13,6 +13,7 @@ def create_app():
     api = Api(app)
     
     # Register routes
+    api.add_resource(hello)
     api.add_resource(PredictResource, '/predict')
     api.add_resource(ResultResource, '/result/<string:image_id>')
     
