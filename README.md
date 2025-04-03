@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Skin Disease Detection API
 
 This Flask application provides an API for skin disease detection using a pre-trained TensorFlow model. The application follows a modular architecture using the MVC pattern.
@@ -89,3 +90,6 @@ The API returns appropriate error messages with HTTP status codes:
 - The application expects images to be preprocessed to match the model's input requirements (224x224 pixels)
 - Supported image formats: PNG, JPG, JPEG
 - CORS is enabled for frontend integration 
+=======
+# Skin-Disease-Detection-Backend
+>>>>>>> b12164e (Initial commit)
