@@ -3,10 +3,15 @@ from flask_restful import Resource
 from app.services.model_service import ModelService
 from app.services.file_service import FileService
 
+class Welcome(Resource):
+    def welcome(self):
+        return {'Welcome to Backend of Skin Disease Detection For Adult Project'}, 200
+
 class PredictResource(Resource):
     def __init__(self):
         self.model_service = ModelService()
         self.file_service = FileService()
+
 
     def post(self):
         """Handle image upload and prediction"""
