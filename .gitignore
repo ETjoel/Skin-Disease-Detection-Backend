@@ -15,8 +15,6 @@ build/
 # Logs
 *.log
 
-# Model files
-*.h5
 
 # Uploaded files
 uploads/
