@@ -1,0 +1,25 @@
+.qodo
+.venv
+
+# Python virtual environment
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Logs
+*.log
+
+# Model files
+*.h5
+
+# Uploaded files
+uploads/
+
+# Environment variables
+.env
