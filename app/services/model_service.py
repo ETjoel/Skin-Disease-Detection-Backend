@@ -1,166 +1,77 @@
 import tensorflow as tf
 import numpy as np
-from PIL import Image
+from PIL import Image 
 import os
 import traceback
-import math
+import cv2
 from app.config.config import Config
+
+# --- IMPORTANT: Re-calculate these values from your training notebook ---
+# These should be the mean and standard deviation of the image pixel values
+# *after* resizing to (100, 125) and *before* standardization, from your TRAINING dataset.
+# In your notebook, this would be from the CNN section, for example:
+# x_train_cnn_input = np.asarray(x_train_o['image'].tolist()) # After df['image'] = df['path'].map(lambda x: np.asarray(Image.open(x).resize((125,100))))
+# x_train_cnn_input = x_train_cnn_input.reshape(x_train_cnn_input.shape[0], *(100, 125, 3))
+# print(f"Mean for CNN: {np.mean(x_train_cnn_input)}")
+# print(f"Std for CNN: {np.std(x_train_cnn_input)}")
+# Then copy those values here.
+# These are placeholder values for 100x125 images:
+X_TRAIN_MEAN = 112.75 # Placeholder - GET THIS FROM YOUR TRAINING DATA FOR 100x125 IMAGES
+X_TRAIN_STD = 68.35  # Placeholder - GET THIS FROM YOUR TRAINING DATA FOR 100x125 IMAGES
+# --- END IMPORTANT ---
 
 class ModelService:
     def __init__(self):
         self.model = None
         self.load_model()
 
-    def get_model_input_shape(self, model):
-        """Extract input shape from model safely"""
-        try:
-            # Try to get input shape from model config
-            if hasattr(model, 'input_shape'):
-                return model.input_shape
-            
-            # Try to get from input layer
-            if hasattr(model, 'inputs') and model.inputs:
-                return model.inputs[0].shape
-            
-            # Try to get from the first layer's input spec
-            if hasattr(model, 'layers') and model.layers and hasattr(model.layers[0], 'input_spec'):
-                if model.layers[0].input_spec and hasattr(model.layers[0].input_spec[0], 'shape'):
-                    return model.layers[0].input_spec[0].shape
-            
-            # Last resort: assume it's a CNN with standard input 
-            return (None, 28, 28, 3)  # Default to what we know works
-        except Exception as e:
-            print(f"Error getting model input shape: {e}")
-            traceback.print_exc()
-            return (None, 28, 28, 3)  # Fallback
-
-    def analyze_model_structure(self, model):
-        """Analyze model structure to understand expected input/output"""
-        print("\n--- Model Structure Analysis ---")
-        try:
-            # Print overall model information
-            print(f"Model type: {type(model)}")
-            print(f"Number of layers: {len(model.layers)}")
-            
-            # Check the first few layers to understand input dimensions
-            print("\nFirst layer:")
-            first_layer = model.layers[0]
-            print(f"  Type: {type(first_layer).__name__}")
-            print(f"  Name: {first_layer.name}")
-            if hasattr(first_layer, 'input_shape'):
-                print(f"  Input shape: {first_layer.input_shape}")
-            if hasattr(first_layer, 'output_shape'):
-                print(f"  Output shape: {first_layer.output_shape}")
-            
-            # Check what comes before the dense layer
-            for i, layer in enumerate(model.layers):
-                if isinstance(layer, tf.keras.layers.Dense):
-                    print(f"\nDense layer at position {i}:")
-                    print(f"  Name: {layer.name}")
-                    print(f"  Units: {layer.units}")
-                    if hasattr(layer, 'input_shape'):
-                        print(f"  Input shape: {layer.input_shape}")
-                    if hasattr(layer, 'output_shape'):
-                        print(f"  Output shape: {layer.output_shape}")
-                    
-                    # Look at the previous layer to understand what's feeding into the dense
-                    if i > 0:
-                        prev_layer = model.layers[i-1]
-                        print(f"\nLayer before dense:")
-                        print(f"  Type: {type(prev_layer).__name__}")
-                        print(f"  Name: {prev_layer.name}")
-                        if hasattr(prev_layer, 'output_shape'):
-                            print(f"  Output shape: {prev_layer.output_shape}")
-                    break
-            
-            # Look at model's expected input
-            if hasattr(model, '_build_input_shape'):
-                print(f"\nModel build input shape: {model._build_input_shape}")
-            
-            # Look at model's expected output
-            print(f"\nOutput layer:")
-            output_layer = model.layers[-1]
-            print(f"  Type: {type(output_layer).__name__}")
-            print(f"  Name: {output_layer.name}")
-            if hasattr(output_layer, 'output_shape'):
-                print(f"  Output shape: {output_layer.output_shape}")
-            print(f"  Output units: {output_layer.units if hasattr(output_layer, 'units') else 'N/A'}")
-            
-            print("\n--- End Model Analysis ---\n")
-        except Exception as e:
-            print(f"Error during model analysis: {e}")
-            traceback.print_exc()
-
     def load_model(self):
         """Load the pre-trained model"""
+        # Ensure Config.MODEL_PATH points to "model.h5" if that's the CNN you want.
+        model_path = Config.MODEL_PATH
         try:
-            # Add compile=False to avoid optimizer state loading issues
-            print(f"Loading model from {Config.MODEL_PATH}")
-            self.model = tf.keras.models.load_model(Config.MODEL_PATH, compile=False)
-            
-            # Analyze model structure to understand what's expected
-            self.analyze_model_structure(self.model)
-            
-            # Print model summary for debugging
-            print("Model architecture:")
-            self.model.summary()
-            
-            # Get input shape safely
-            input_shape = self.get_model_input_shape(self.model)
-            print(f"Model input shape: {input_shape}")
-            
-            # Compile the model with basic settings after loading
-            self.model.compile(
-                optimizer='adam',
-                loss='categorical_crossentropy',
-                metrics=['accuracy']
-            )
-            
+            # It's good practice to set compile=False when loading for inference,
+            # as optimizers might not be available or compatible across TensorFlow versions.
+            self.model = tf.keras.models.load_model(model_path, compile=False)
             print("Model loaded successfully")
-        except Exception as e:
-            print(f"Error loading model: {str(e)}")
+            
+            # --- Added for Debugging ---
+            print("\n--- Model Summary (for debugging input shape) ---")
+            self.model.summary() # This will confirm the (None, 100, 125, 3) input shape.
+            print("--- End Model Summary ---\n")
+            # --- End Added ---
+            
+        except OSError as e:
+            print(f"Error loading model from {model_path}: {e}")
             traceback.print_exc()
-            self.model = None
+            raise Exception(f"Error loading model: {e}") from e
 
-    def preprocess_image(self, image_path):
-        """Preprocess the image for model input"""
+    def image_to_model_input(self, image_path):
+        """Preprocess the image for CNN model input"""
         try:
-            if not os.path.exists(image_path):
-                raise Exception(f"Image file not found: {image_path}")
-                
-            img = Image.open(image_path)
+            image = cv2.imread(image_path)
             
-            # The model expects input shape (None, 28, 28, 3)
-            target_size = (28, 28)
-            print(f"Using specific dimensions for this model: {target_size}")
+            if image is None:
+                raise FileNotFoundError(f"Image not found or could not be loaded: {image_path}")
+
+            # 1. Resize image to (100, 125) (height, width) as per the loaded CNN model's input expectations.
+            # cv2.resize expects (width, height) tuple, so (125, 100)
+            resized_image = cv2.resize(image, (125, 100)) 
             
-            # Resize the image
-            img = img.resize(target_size)
-            print(f"Resized image to: {target_size}")
+            # 2. Convert BGR (OpenCV default) to RGB (PIL/Model training standard).
+            resized_image = cv2.cvtColor(resized_image, cv2.COLOR_BGR2RGB)
+
+            # Ensure 3 channels in case it was loaded as grayscale (e.g., (H, W) or (H, W, 1))
+            if len(resized_image.shape) == 2:
+                resized_image = cv2.cvtColor(resized_image, cv2.COLOR_GRAY2RGB)
+            elif resized_image.shape[2] == 1: # If it's (height, width, 1) grayscale
+                resized_image = cv2.cvtColor(resized_image, cv2.COLOR_GRAY2RGB)
+
+            # 3. Apply the same standardization (mean/std normalization) used during training.
+            preprocessed_image = resized_image.astype('float32')
+            preprocessed_image = (preprocessed_image - X_TRAIN_MEAN) / X_TRAIN_STD
             
-            # Convert to numpy array
-            img_array = np.array(img)
-            print(f"Image array shape after resize: {img_array.shape}")
-            
-            # Handle both RGB and RGBA images
-            if len(img_array.shape) == 3 and img_array.shape[-1] == 4:  # RGBA
-                img_array = img_array[:,:,:3]  # Convert to RGB
-                print("Converted RGBA to RGB")
-            
-            # Ensure image has 3 channels (RGB)
-            if len(img_array.shape) == 2:  # Grayscale
-                img_array = np.stack((img_array,) * 3, axis=-1)
-                print("Converted grayscale to RGB")
-            
-            # Normalize pixel values
-            img_array = img_array / 255.0
-            
-            # Add batch dimension to create 4D tensor (batch, height, width, channels)
-            # Model expects shape (None, 28, 28, 3)
-            processed_image = np.expand_dims(img_array, axis=0)
-            print(f"Final processed image shape: {processed_image.shape}")
-            
-            return processed_image
+            return preprocessed_image # Shape will be (100, 125, 3)
         except Exception as e:
             print(f"Error preprocessing image: {str(e)}")
             traceback.print_exc()
@@ -168,39 +79,52 @@ class ModelService:
 
     def predict(self, image_path):
         """Make prediction on the image"""
-        if self.model is None:
-            try:
-                print("Model not loaded, attempting to reload...")
-                self.load_model()
-                if self.model is None:
-                    raise Exception("Model could not be loaded")
-            except Exception as e:
-                print(f"Failed to reload model: {str(e)}")
-                traceback.print_exc()
-                raise Exception("Model not loaded")
-
+        classes = {
+            0: 'Actinic Keratoses and Intraepithelial Carcinomae (akiec)',
+            1: 'Basal Cell Carcinoma (bcc)',
+            2: 'Benign Keratosis-like Lesions (bkl)',
+            3: 'Dermatofibroma (df)',
+            4: 'Melanocytic Nevi (nv)', 
+            5: 'Pyogenic Granulomas and Hemorrhage (vasc)',
+            6: 'Melanoma (mel)'
+        }
+        
         try:
-            processed_image = self.preprocess_image(image_path)
-            print(f"Input shape for prediction: {processed_image.shape}")
+            processed_image = self.image_to_model_input(image_path) # Returns shape (100, 125, 3)
+
+            # Add a batch dimension: Transforms (100, 125, 3) to (1, 100, 125, 3)
+            processed_image = np.expand_dims(processed_image, axis=0) 
             
-            # Check the expected input shape for the model
-            if hasattr(self.model, 'input_shape'):
-                print(f"Model expects input shape: {self.model.input_shape}")
+            print(f"Input shape to model: {processed_image.shape}") 
             
+            if self.model is None:
+                raise Exception("Model not loaded. Ensure load_model() was successful.")
+                
             predictions = self.model.predict(processed_image, verbose=0)
-            print(f"Prediction output shape: {predictions.shape}")
+            # The last layer of your CNN model is softmax, so output is already probabilities.
+            predictions = predictions[0] # Get the predictions for the single input image
             
-            predicted_class_index = np.argmax(predictions[0])
-            confidence = float(predictions[0][predicted_class_index])
-            predicted_class = Config.CLASSES[predicted_class_index]
+            print(f"Prediction output (before argmax): {predictions}")
             
-            print(f"Predicted class: {predicted_class}, confidence: {confidence}")
+            # Log probabilities
+            for idx, prob in enumerate(predictions):
+                print(f"Class {classes.get(idx, 'Unknown')}: {prob:.6f}")
+            
+            # Validate predictions
+            if np.any(predictions < 0) or np.any(predictions > 1):
+                print(f"Warning: Predictions contain values outside [0, 1]: {predictions}")
+            if not np.isclose(np.sum(predictions), 1.0, rtol=1e-5):
+                print(f"Warning: Predictions sum to {np.sum(predictions):.6f}, not 1.0.")
+            
+            predicted_class_index = np.argmax(predictions)
+            predicted_class = classes.get(predicted_class_index, "Unknown Class")
+            print(f"Predicted class: {predicted_class}")
             
             return {
                 'disease': predicted_class,
-                'confidence': confidence
+                'predictions': predictions.tolist()
             }
         except Exception as e:
             print(f"Error making prediction: {str(e)}")
             traceback.print_exc()
-            raise Exception(f"Error making prediction: {str(e)}") 
+            raise Exception(f"Error making prediction: {str(e)}")
