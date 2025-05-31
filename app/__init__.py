@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, make_response
 from flask_restful import Api
 from flask_cors import CORS
 from app.config.config import Config
@@ -17,6 +17,11 @@ def create_app():
     # Initialize extensions
     CORS(app)
     api = Api(app)
+
+     # Global HEAD handler for health checks
+    @app.route('/', methods=['HEAD'])
+    def handle_head():
+        return make_response("", 200)
     
     # Register routes
     api.add_resource(Welcome, '/')
