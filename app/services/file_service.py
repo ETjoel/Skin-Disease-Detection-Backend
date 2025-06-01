@@ -2,6 +2,7 @@ import os
 import uuid
 from werkzeug.utils import secure_filename
 from app.config.config import Config
+import mimetypes
 
 class FileService:
     def __init__(self):
@@ -16,6 +17,10 @@ class FileService:
     def allowed_file(self, filename):
         """Check if the file extension is allowed"""
         return '.' in filename and filename.rsplit('.', 1)[1].lower() in self.allowed_extensions
+    
+    def get_mime_type(self, filename):
+        """return file type"""
+        return mimetypes.guess_type(filename)[0]
 
     def save_file(self, file):
         """Save the uploaded file and return the filepath"""

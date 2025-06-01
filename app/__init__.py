@@ -3,6 +3,7 @@ from flask_restful import Api
 from flask_cors import CORS
 from app.config.config import Config
 from app.controllers.prediction_controller import PredictResource, ResultResource, Welcome
+from app.controllers.gemini_controller import GeminiController
 import os
 
 def create_app():
@@ -27,5 +28,8 @@ def create_app():
     api.add_resource(Welcome, '/')
     api.add_resource(PredictResource, '/predict')
     # api.add_resource(ResultResource, '/result/<string:image_id>')
+
+    # Check if the image is skin skindisease
+    api.add_resource(GeminiController, '/checkImage')
     
     return app 
