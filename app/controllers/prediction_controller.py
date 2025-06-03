@@ -35,6 +35,8 @@ class PredictResource(Resource):
             
             # Get prediction from model
             prediction = self.model_service.predict(filepath)
+
+            self.file_service.remove_file(filepath)
             
             # Combine results
             result = {

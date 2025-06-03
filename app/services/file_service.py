@@ -39,3 +39,12 @@ class FileService:
             return filepath, unique_filename
         except Exception as e:
             raise Exception(f"Error saving file: {e}") 
+        
+    def remove_file(self, filepath):
+        if not filepath:
+            raise ValueError("No file provided")
+        
+        try:
+            os.remove(filepath)
+        except Exception as e:
+            raise Exception(f"Error removing file: {e}")
